@@ -1,0 +1,19 @@
+<?php
+
+/**
+ * @package    Japxlate (https://github.com/danielrhodeswarp/Japxlate)
+ * @copyright  Copyright (c) 2011 Warp Asylum Ltd (UK).
+ * @license    see LICENCE file in source code root folder     New BSD License
+ */
+
+//Application
+define('TWITTER_FEED_NAME', 'feedname');
+
+//Database connectivity
+MySQL::connect('user', 'password', 'host', 'schema');
+
+//Twitter oAuth
+define('TWITTER_CONSUMER_KEY', 'abc123abc123abc123abc');
+define('TWITTER_CONSUMER_SECRET', 'abc123abc123abc123abc123abc123abc123abc123');
+define('TWITTER_ACCESS_TOKEN', 'abc123abc123abc123abc123abc123abc123abc123abc123ab');
+define('TWITTER_ACCESS_SECRET', 'abc123abc123abc123abc123abc123abc123abc123a');
