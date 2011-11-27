@@ -1,0 +1,8 @@
+Put in this folder the following CSV files from the downloads page of tatoeba.org:
+
+[] jpn_indices.csv
+[] links.csv
+[] sentences.csv
+
+Then you can eat these into the database with the scripts in /scripts
+(eat sentences.csv first!)

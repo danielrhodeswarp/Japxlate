@@ -1,0 +1,4 @@
+Get EDICT dictionary file from http://www.csse.monash.edu.au/~jwb/cgi-bin/wwwjdic.cgi
+and put in this folder (with filename "edict")
+Then you can eat it into the database with the script
+in /scripts
