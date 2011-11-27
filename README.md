@@ -5,10 +5,13 @@
 It's a Twitter bot that tweets out random Japanese words - with definitions - once an hour. It also attempts to define people's words (Japanese or English) that they Tweet in. Usage example
 sentences are occasionally Tweeted.
 
+英語定義が欲しい場合は「@japxlate 日本語単語」をツイートしてください。リプライで教えます。Japxlate は日本語母語話者用にも便利！
+
 ## How does it work?
 
 The EDICT dictionary project (http://www.csse.monash.edu.au/~jwb/cgi-bin/wwwjdic.cgi) is used for the random words and to define people's words.
 The Tatoeba project (http://tatoeba.org) is used for usage example sentences.
+Abraham Williams' TwitterOAuth class (https://github.com/abraham/twitteroauth) is used to connect to Twitter.
 
 ## What does it need to run?
 
