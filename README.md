@@ -7,6 +7,15 @@ sentences are occasionally Tweeted.
 
 英語定義が欲しい場合は「@japxlate 日本語単語」をツイートしてください。リプライで教えます。Japxlate は日本語母語話者用にも便利！
 
+## What's new?
+
+* Finally comes with a script to process the EDICT dictionary file (EDICT2)
+* Updated INSTALL instructions
+* Full docblock comments for all PHP classes, methods and functions
+* Restructured class internals
+* Updated for Twitter API v1.1
+* Improved logging
+
 ## How does it work?
 
 The EDICT dictionary project (http://www.csse.monash.edu.au/~jwb/cgi-bin/wwwjdic.cgi) is used for the random words and to define people's words.
@@ -17,10 +26,10 @@ Abraham Williams' TwitterOAuth class (https://github.com/abraham/twitteroauth) i
 
 * Commandline PHP
 * mbstring extension for PHP
-* JSON extension for PHP (or?)
+* JSON extension for PHP
 * mysqli extension for PHP (but should be easy to alter everything for another MySQL extension or indeed another RDBMS)
 * MySQL (with Unicode ability)
-* The EDICT file
+* The EDICT2 dictionary file
 * Some CSV files from Tatoeba.org
 * You'll need a Twitter account and then a "My application" (so you can get some OAuth access tokens etc). You'll want "Read, Write and Access direct messages" permission.
 
@@ -37,4 +46,7 @@ Abraham Williams' TwitterOAuth class (https://github.com/abraham/twitteroauth) i
 * Direct message seeding can be iffy - I don't think Twitter likes it when users DM themselves!
 * Lacks any kind of "cashing in" mechanism for current trending hashtags (ie. defining
 the current trend words but in Japanese would be nifty)
-* As a timed robot it's pretty cheesy because all it does is call sleep() lol! 
+* As a timed robot it's pretty cheesy because all it does is call sleep() LOL!
+* Obviously you've got all your DB and Twitter credentials in plaintext in the configuration.php
+* Defining people's words needs to be less strict and "hit" the dictionary more
+* Definition formatting logic is duplicated in MANY places in the code - must consolidate

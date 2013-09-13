@@ -43,7 +43,6 @@ CREATE TABLE IF NOT EXISTS `edict` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `kanji` varchar(30) COLLATE utf8_unicode_ci NOT NULL COMMENT 'orig jap word being defined',
   `kana` varchar(30) COLLATE utf8_unicode_ci NOT NULL COMMENT 'furigana (in this case hiragana)',
-  `wordtype` varchar(20) COLLATE utf8_unicode_ci DEFAULT NULL COMMENT 'word type',
   `definition` varchar(200) COLLATE utf8_unicode_ci NOT NULL COMMENT 'english def of orig jap word',
   PRIMARY KEY (`id`)
 ) ENGINE=MyISAM  DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci COMMENT='EDICT Japanese to ENglish freeware dictionary (jdic.com)';

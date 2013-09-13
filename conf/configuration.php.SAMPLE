@@ -1,10 +1,20 @@
 <?php
 
 /**
+ * Application, database and Twitter configuration
+ * 
  * @package    Japxlate (https://github.com/danielrhodeswarp/Japxlate)
- * @copyright  Copyright (c) 2011 Warp Asylum Ltd (UK).
+ * @author     Daniel Rhodes
+ * @copyright  Copyright (c) 2011-2013 Warp Asylum Ltd (UK).
  * @license    see LICENCE file in source code root folder     New BSD License
  */
+
+//Logging
+define('APPLICATION_ERROR_LOG', $_SERVER['DOCUMENT_ROOT'] . '/logs/error.log');
+define('APPLICATION_MESSAGE_LOG', $_SERVER['DOCUMENT_ROOT'] . '/logs/message.log');
+define('APPLICATION_LANGUAGE_LOG', $_SERVER['DOCUMENT_ROOT'] . '/logs/language.log');
+
+define('APPLICATION_MESSAGE_LOGGING_ACTIVE', true);
 
 //Application
 define('TWITTER_FEED_NAME', 'feedname');

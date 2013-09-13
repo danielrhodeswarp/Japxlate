@@ -1,12 +1,16 @@
 <?php
 
 /**
+ * Digest the Tatoeba.org "sentences.csv" file into our database.
+ * The file is a list of sentences in different languages
+ * 
  * @package    Japxlate (https://github.com/danielrhodeswarp/Japxlate)
- * @copyright  Copyright (c) 2011 Warp Asylum Ltd (UK).
+ * @author     Daniel Rhodes
+ * @copyright  Copyright (c) 2011-2013 Warp Asylum Ltd (UK).
  * @license    see LICENCE file in source code root folder     New BSD License
  */
 
-//DO BEFORE eating the links
+//RUN THIS SCRIPT BEFORE RUNNING eat_tatoeba_project_links.csv.php
 
 mb_language('Japanese');
 mb_internal_encoding('UTF-8');

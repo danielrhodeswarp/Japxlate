@@ -1,96 +1,80 @@
 <?php
 
 /**
+ * Libwrary file containing functions to manipulate ja <--> en xlations
+ * 
  * @package    Japxlate (https://github.com/danielrhodeswarp/Japxlate)
- * @copyright  Copyright (c) 2011 Warp Asylum Ltd (UK).
+ * @author     Daniel Rhodes
+ * @copyright  Copyright (c) 2011-2013 Warp Asylum Ltd (UK).
  * @license    see LICENCE file in source code root folder     New BSD License
  */
 
-	//SOME JUNK TO 'FORCE' UNICODE FILE OPENING IN IDE
-	//@japxlate morning'  [OK]
-	//[] '@japxlate good-for-nothing'  [OK]
-	//[] '@japxlate 正しい'  [OK]
-	//[] '@japxlate 主張'  [OK]
-	//[] '@japxlate why hello there'  [NG]
-	//[] '@japxlate 正しい  主張'  [NG]
+//SOME JUNK TO 'FORCE' UNICODE FILE OPENING IN CERTAIN IDEs
+//@japxlate morning'  [OK]
+//[] '@japxlate good-for-nothing'  [OK]
+//[] '@japxlate 正しい'  [OK]
+//[] '@japxlate 主張'  [OK]
+//[] '@japxlate why hello there'  [NG]
+//[] '@japxlate 正しい  主張'  [NG]
 
-//
-function merge_multiple_sentences(array $sentences)
-{
-	$result = '';
-	
-	if(count($sentences) > 3)
-	{
-		$sentences = array_slice($sentences, 0, 3);
-	}
-	
-	foreach($sentences as $sentence)
-	{
-		//$words = preg_split("/\s+/", $sentence);
-		$words = preg_split('/\s+/', $sentence);
-		
-		//if($count($words) < 4))
-		//{
-		//	
-		//}
-		
-		$result .= "{$words[0]} {$words[1]} {$words[2]} {$words[3]}";
-	}
-	
-	return $result;
-}
-
-//Returns true if passed string contains multibyte characters
-//(in fact, PHP already *seems* to have an "is_unicode" function!)
+/**
+ * Check if the passed $string is multibyte or not
+ * 
+ * @author Daniel Rhodes
+ * @note see also PHP's is_unicode() function
+ * 
+ * @param string $string the string to check
+ * @return bool true if $string contains at least one multibyte character
+ */
 function is_mb($string)
 {
+    //if character length is not same as *byte* length, then at least one char is multibyte
 	return(strlen($string) != mb_strlen($string));
 }
 
-//Convert hiragana (if present) into katakana
+/**
+ * Convert hiragana (if present) in Japanese string into katakana
+ * 
+ * @author Daniel Rhodes
+ * @note "hankaku" is ignored here
+ * @note function return is same as input if input has no hiragana
+ * 
+ * @param string $japanese Japanese string with (potential) hiragana
+ * @return string as $japanese but with hiragana converted into katakana
+ */
 function hira_to_kata($japanese)
 {
 	//'C' = Convert "zen-kaku hira-gana" to "zen-kaku kata-kana"
 	return mb_convert_kana($japanese, 'C');
 }
 
-//Convert katakana (if present) into hiragana
+/**
+ * Convert katakana (if present) in Japanese string into hiragana
+ * 
+ * @author Daniel Rhodes
+ * @note "hankaku" is ignored here
+ * @note function return is same as input if input has no katakana
+ * 
+ * @param string $japanese Japanese string with (potential) katakana
+ * @return string as $japanese but with katakana converted into hiragana
+ */
 function kata_to_hira($japanese)
 {
 	//'C' = Convert "zen-kaku kata-kana" to "zen-kaku hira-gana"
 	return mb_convert_kana($japanese, 'c');
 }
 
-//no truck with this one :-(
-//
-//reason that if converting the entire string into katakana results
-//in no change, then the string must already be katakana
-//(and same for hiragana so string is hira *or* kata kana)
-//
-//use levenshtein() or similar_text() [both of which work at the BYTE level and not the character level btw...] ??
-/*
-function is_kanaFART($string)
-{
-	if((levenshtein($string, hira_to_kata($string)) == strlen($string)) or (levenshtein($string, kata_to_hira($string)) == strlen($string)))
-	{
-		return true;
-	}
-	
-	return false;
-}
-*/
-
-//no truck with this one :-(
-/*
-function is_kana($string)
-{
-	return mb_ereg_match('/^[¤¢-¤ó]{1,}$/i', $string);
-}
-*/
-
-//Convert zenkaku kana to romaji
-//(perhaps also look at recode_string() )
-//many many gaps in this!
+/**
+ * Convert zenkaku kana to romaji
+ * 
+ * @author Daniel Rhodes
+ * @note many many gaps in this!
+ * @note perhaps use PHP's recode_string() instead
+ * @note logs to language log if any transliteration errors
+ * 
+ * @param string $kana_string source string in katakana and / or hiragana
+ * @return string the source string converted into romaji
+ */
 function kana_to_romaji($kana_string)
 {
 	//force KATAkana
@@ -431,14 +415,26 @@ function kana_to_romaji($kana_string)
 	
 	$romajiString = preg_replace('|([a-z]{1})ー|', '${1}${1}', $romajiString);
 	
+    //log any transliteration failures (ie. $romajiString still has katakana in it)
+    if(is_mb($romajiString))
+    {
+        log_language("NOTE '{$kana_string}' has been transliterated to '{$romajiString}'");
+    }
+    
 	return $romajiString;
 }
 
-//Convert romaji to zenkaku hiragana
-//REVERSE VERSION OF kana_to_romaji()!
-//(get small tsu etc working)
-//(perhaps also look at recode_string() )
-//many many gaps in this!
+/**
+ * Convert romaji to zenkaku hiragana
+ * 
+ * @author Daniel Rhodes
+ * @note many many gaps in this!
+ * @note perhaps use PHP's recode_string() instead
+ * @note get small tsu etc working
+ * 
+ * @param string $romaji_string source string in romaji
+ * @return string the source string converted into hiragana
+ */
 function romaji_to_hiragana($romaji_string)
 {
 	$multiReplace = array
@@ -782,35 +778,44 @@ function romaji_to_hiragana($romaji_string)
 	return $hiraganaString;
 }
 
-//
+/**
+ * Search dictionary for a definition of the specified English word
+ * 
+ * @author Daniel Rhodes
+ * 
+ * @param string $word English word (OR ROMAJI) to get a translation for
+ * @return string empty string if no translation found ELSE full definition line
+ */
 function get_xlation_for_en($word)
 {
-	$best_matches = MySQL::queryAll('SELECT * FROM edict WHERE definition LIKE \'%; ' . MySQL::esc($word) . ';%\' ORDER BY wordtype ASC');
+    //search for exact match in definition list
+	$best_matches = MySQL::queryAll('SELECT * FROM edict WHERE definition LIKE \'%/' . MySQL::esc($word) . '/%\'');
 	
 	if(!empty($best_matches))
 	{
 		//$row = $best_matches[0];	//or randomise?
-		$row = $best_matches[rand(0, count($best_matches) - 1)];	//or prioritise?
+		$row = $best_matches[mt_rand(0, count($best_matches) - 1)];	//or prioritise?
 		
 		$romaji = kana_to_romaji($row['kana']);
 		
-		$definition = trim($row['definition'], ' ;');
+		$definition = format_slashes($row['definition']);
 		
 		return "{$row['kanji']} / {$row['kana']} ({$romaji}) / {$definition}";
 	}
 	
 	else
 	{
-		$second_best_matches = MySQL::queryAll('SELECT * FROM edict WHERE definition LIKE \'%' . MySQL::esc($word) . '%\' ORDER BY wordtype ASC');
+        //search for partial match in definition list
+		$second_best_matches = MySQL::queryAll('SELECT * FROM edict WHERE definition LIKE \'%' . MySQL::esc($word) . '%\'');
 	
 		if(!empty($second_best_matches))
 		{
 			//$row = $second_best_matches[0];	//or randomise?
-			$row = $second_best_matches[rand(0, count($second_best_matches) - 1)];	//or prioritise?
+			$row = $second_best_matches[mt_rand(0, count($second_best_matches) - 1)];	//or prioritise?
 			
 			$romaji = kana_to_romaji($row['kana']);
 			
-			$definition = trim($row['definition'], ' ;');
+			$definition = format_slashes($row['definition']);
 			
 			return "{$row['kanji']} / {$row['kana']} ({$romaji}) / {$definition}";
 		}
@@ -819,16 +824,16 @@ function get_xlation_for_en($word)
 		{
 			$word_in_kana = romaji_to_hiragana($word);
 			
-			$romaji_matches = MySQL::queryAll('SELECT * FROM edict WHERE kana LIKE \'' . MySQL::esc($word_in_kana) . '\' ORDER BY wordtype ASC');
+			$romaji_matches = MySQL::queryAll('SELECT * FROM edict WHERE kana LIKE \'' . MySQL::esc($word_in_kana) . '\'');
 	
 			if(!empty($romaji_matches))
 			{
 				//$row = $romaji_matches[0];	//or randomise?
-				$row = $romaji_matches[rand(0, count($romaji_matches) - 1)];	//or prioritise?
+				$row = $romaji_matches[mt_rand(0, count($romaji_matches) - 1)];	//or prioritise?
 				
 				$romaji = kana_to_romaji($row['kana']);
 				
-				$definition = trim($row['definition'], ' ;');
+				$definition = format_slashes($row['definition']);
 				
 				return "{$row['kanji']} / {$row['kana']} ({$romaji}) / {$definition}";
 			}
@@ -838,35 +843,44 @@ function get_xlation_for_en($word)
 	return '';
 }
 
-//
+/**
+ * Search dictionary for a definition of the specified Japanese word
+ * 
+ * @author Daniel Rhodes
+ * 
+ * @param string $word Japanese word (kanji or kana) to get a translation for
+ * @return string empty string if no translation found ELSE full definition line
+ */
 function get_xlation_for_ja($word)
 {
-	$best_matches = MySQL::queryAll('SELECT * FROM edict WHERE kanji LIKE \'' . MySQL::esc($word) . '\' ORDER BY wordtype ASC');
+    //search for match as kanji
+	$best_matches = MySQL::queryAll('SELECT * FROM edict WHERE kanji LIKE \'' . MySQL::esc($word) . '\'');
 	
 	if(!empty($best_matches))
 	{
 		//$row = $best_matches[0];	//or randomise?
-		$row = $best_matches[rand(0, count($best_matches) - 1)];	//or prioritise?
+		$row = $best_matches[mt_rand(0, count($best_matches) - 1)];	//or prioritise?
 		
 		$romaji = kana_to_romaji($row['kana']);
 		
-		$definition = trim($row['definition'], ' ;');
+		$definition = format_slashes($row['definition']);
 		
 		return "{$row['kanji']} / {$row['kana']} ({$romaji}) / {$definition}";
 	}
 	
 	else
 	{
-		$second_best_matches = MySQL::queryAll('SELECT * FROM edict WHERE kana LIKE \'' . MySQL::esc(kata_to_hira($word)) . '\' ORDER BY wordtype ASC');
+        //search for match as kana
+		$second_best_matches = MySQL::queryAll('SELECT * FROM edict WHERE kana LIKE \'' . MySQL::esc(kata_to_hira($word)) . '\'');
 	
 		if(!empty($second_best_matches))
 		{
 			//$row = $second_best_matches[0];	//or randomise?
-			$row = $second_best_matches[rand(0, count($second_best_matches) - 1)];	//or prioritise?
+			$row = $second_best_matches[mt_rand(0, count($second_best_matches) - 1)];	//or prioritise?
 			
 			$romaji = kana_to_romaji($row['kana']);
 			
-			$definition = trim($row['definition'], ' ;');
+			$definition = format_slashes($row['definition']);
 			
 			return "{$row['kanji']} / {$row['kana']} ({$romaji}) / {$definition}";
 		}
@@ -875,8 +889,19 @@ function get_xlation_for_ja($word)
 	return '';
 }
 
-//could poss unroll the query for better performance
-//also, query (and jpn_indices.csv eating script) could prob be tweaked for more accurate results
+/**
+ * For the given Japanese word, try to get an example usage sentence from our
+ * sentences DB tables
+ * 
+ * @author Daniel Rhodes
+ * @note could poss unroll the query for better performance
+ * @note query (and jpn_indices.csv eating script) could prob be tweaked for more accurate results
+ * 
+ * @param string $kanji word in kanji
+ * @param string $kana word in kana
+ * @param bool $include_link_to_tatoeba_project optional. default true. true to include a link (in the returned string) to the sentence on tatoeba.org
+ * @return string empty string if no sentence found ELSE example sentence using word
+ */
 function get_sentence_for_ja_word($kanji, $kana, $include_link_to_tatoeba_project = true)
 {
 	$sentence = '';
@@ -899,9 +924,8 @@ function get_sentence_for_ja_word($kanji, $kana, $include_link_to_tatoeba_projec
 		//for display purposes etc)
 		//so use a link shortener manually to get a short link BEFORE the Tweet is submitted
 		
-		
 		//assume that the link shortener we use always uses a same size shortened URL
-		$short_url_length = strlen(shorten_url('www.example.com'));
+		$short_url_length = strlen(shorten_url('www.example.com')); //hmmm
 		
 		$max_length_of_sentences = 140 - $short_url_length;
 	}
@@ -941,7 +965,6 @@ LIMIT
 	0,10
 SQL;
 
-		
 	$results = MySQL::queryAll($sql);
 	
 	if(!empty($results))

@@ -1,4 +1,2 @@
 conf/configuration.php
-.buildpath
-.project
-.settings
+nbproject/

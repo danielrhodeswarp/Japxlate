@@ -1,24 +1,71 @@
 <?php
 
 /**
+ * Our main application robot loop handling tweets in and out
+ * 
  * @package    Japxlate (https://github.com/danielrhodeswarp/Japxlate)
- * @copyright  Copyright (c) 2011 Warp Asylum Ltd (UK).
+ * @author     Daniel Rhodes
+ * @copyright  Copyright (c) 2011-2013 Warp Asylum Ltd (UK).
  * @license    see LICENCE file in source code root folder     New BSD License
  */
-
 class TwitterRobot
 {
+	/**
+     * How frequently, in seconds, to process incoming mentions (tweets like "@japxlate myWord")
+     * and seed DMs (a DM that TWITTER_FEED_NAME sends to self like "seed someKanjiWordInOurDictionary")
+     */
+	private $internal_delay;
 	
-	private $internal_delay;	//in seconds
-	private $external_delay;	//in seconds
-	private $finished;
-	private $jingles = array();	//blurbs to tweet when quiet to prevent "dead air time"
-	private $searchTags = array();	//tags to search for to reply to people with "reminders"
-	private $dontSearchTags = array();	//tags to hard exclude when searching
+    /**
+     * Seconds of inactivity (ie. no mentions or seed DMs handled) to wait before
+     * tweeting out a random word or possibly a jingle
+     */
+    private $external_delay;
 	
-	private $usersTweeted = array();	//prob better to use a DB
+    /**
+     * Master loop control
+     */
+    private $finished;
 	
-	//delays are passed in seconds
+    /**
+     * fixed blurbs to tweet out very occasionally instead of a random word
+     */
+    private $jingles = array();
+    
+    /**
+     * some different Twitter hash tags to mean "Japanese"
+     */
+    private $japaneseTags = array();
+	
+    /**
+     * tags to search for users to reply to with "reminders" about our feed
+     */
+    private $searchTags = array();
+	
+    /**
+     * tags to hard exclude when searching for users to remind
+     * (ie. '#porn' or things that would look bad associated with your feed)
+     */
+    private $dontSearchTags = array();
+	
+    /**
+     * users already "reminded" about our feed (in this run of the robot)
+     * so that we don't annoy them again and get reported LOL
+     * 
+     * @note prob better to use a DB
+     */
+	private $usersTweeted = array();
+	
+	/**
+     * Class constructor
+     * 
+     * @author Daniel Rhodes
+     * 
+     * @param int $internal_delay in seconds
+     * @param int $external_delay in seconds
+     * @param string[] $search_tags search tags to grab people to remind
+     * @param string[] $dont_search_tags exclude search tags when searching for remind users
+     */
 	function __construct($internal_delay, $external_delay, array $search_tags, array $dont_search_tags)
 	{
 		$this->internal_delay = $internal_delay;
@@ -28,63 +75,53 @@ class TwitterRobot
 		$this->searchTags = $search_tags;
 		$this->dontSearchTags = $dont_search_tags;
 		
-		$this->initiateJingles();
+		$this->jingleInitiateAll();
+        $this->japaneseTagInitiateAll();
 	}
 	
-	//
-	//change these for your feed name and etc
-	private function initiateJingles()
-	{
-		$this->jingles[] = 'Japxlate is powered by the wonderful EDICT #dictionary project as found at http://www.csse.monash.edu.au/~jwb/cgi-bin/wwwjdic.cgi';
-		$this->jingles[] = 'Japxlate\'s example sentences come from the excellent Tatoeba Project as found at http://tatoeba.org';
-		$this->jingles[] = 'Did you know that written #Japanese is actually a mixture of three different scripts? #Kanji, #hiragana and #katakana are used';
-		$this->jingles[] = 'Want to know how to say your favourite word in #Japanese? Tweet @japxlate yourWord for the answer!';
-		$this->jingles[] = 'Did you know that #katakana and #hiragana are purely phonetic? The character *is* the sound, the sound *is* the character!';
-		$this->jingles[] = 'Tweet @japxlate word for definitions. Word can be in English, Japanese script (kanji or kana) or romaji (Japanese words written in abc)';
-		$this->jingles[] = '#Kanji are ideographic characters taken from ancient Chinese';
-		$this->jingles[] = '#Hiragana is a rounded, cursive script. It\'s used to add grammar to a sentence and to give pronunciation hints';
-		$this->jingles[] = '英語定義が欲しい場合は「@japxlate 日本語単語」をツイートしてください。リプライで教えます。Japxlate は日本語母語話者用にも便利！';
-		$this->jingles[] = '#Katakana is a hard, angluar script. It\'s used to give emphasis to words and to write foreign words';
-		$this->jingles[] = 'Studying #kanji? Tweet @japxlate 漢字 for a definition!';
-		$this->jingles[] = 'Want an online map of Japan with English labels and searching? Head over to @Mapanese at http://mapanese.info';
-		$this->jingles[] = 'Heard a new #Japanese word? Give it to us in #romaji and we can still define it! Tweet @japxlate kotoba for a definition';
-		$this->jingles[] = 'Don\'t forget that Japxlate is interactive! Tweet @japxlate JapOrEnWord for a #definition';
-		$this->jingles[] = 'Are you an #expat in Japan and wanna share the cool places? Check http://gaijinavi.com !';
-	}
-	
-	
-	//
+	/**
+     * Let's get this party started! Starts the master control (endless) loop.
+     * your external scripts will call this after constructing an object
+     * 
+     * @author Daniel Rhodes
+     */
 	public function start()
 	{
-		$nop_time = 0;
+		log_message('TwitterRobot::start()');
+		
+		$nop_time = 0;  //"no operation" time
 		
 		while(!$this->finished)
 		{
-			if(Twitter::rawTest() == '"ok"')	//NOP if twitter down
+			$something_tweeted = false;
+			
+			if(Twitter::test() == '"ok"')	//NOP if twitter down
 			{
-				$something_tweeted = $this->doMainLoop();	//cache - and reply to - our mentions
+                //cache - and reply to - our mentions
+				$something_tweeted = $this->mentionProcessAll();
 				
 				//also handle seeds
 				if(!$something_tweeted)
 				{
-					$something_tweeted = $this->processSeeds();
+					$something_tweeted = $this->seedProcessAll();
 				}
 			}
 			
 			sleep($this->internal_delay);
 			
-			if(!$something_tweeted and Twitter::rawTest() == '"ok"')
+			if(!$something_tweeted and Twitter::test() == '"ok"')
 			{
 				$nop_time += $this->internal_delay;
 				
 				if($nop_time > $this->external_delay)
 				{
-									
+					//10% chance of tweeting a jingle
 					if(mt_rand(1, 100) > 90)
 					{
-						Twitter::statusUpdate($this->jingles[mt_rand(0, count($this->jingles) - 1)]);
+						Twitter::statusUpdate($this->jingleGet());
 						//ECHO "Jingled!\n";
 						
+                        //35% chance of tweeting a reminder
 						if(mt_rand(1, 100) > 65)
 						{
 							//ALSO SEARCH FOR APPROPRIATE TAGS
@@ -97,186 +134,115 @@ class TwitterRobot
 					
 					else
 					{
-						//$direct_messages = Twitter::get('direct_messages');
-						
-						//if($this->haveSeed($direct_messages))
-						//{
-						//	$this->tweetSeed($direct_messages);
-						//}
-						
-						//else
-						//{
-							$this->tweetRandomWord($this->getRandomTwitterTag());
-						//}
+						$this->definitionTweet($this->japaneseTagGet());
 					}
 					
+                    //reset "no operation" time
 					$nop_time = 0;
 				}
 			}
 		}
 	}
 	
-	
-	//
-	private function doMainLoop()
+    //----mention handling methods----------------------------------------------
+    
+	/**
+     * Cache any new mentions (for later processing) and then process the oldest
+     * cached mention
+     * 
+     * @author Daniel Rhodes
+     * 
+     * @return bool true if a mention response was tweeted out (else false)
+     */
+	private function mentionProcessAll()
 	{
 		//routine
-		//[1] cache unprocessed tweets
-		//[2] process one cached tweet
-		//[3] handle seeds
+		//[1] cache unprocessed mentions
+		//[2] process one cached mention
 		
 		//format of returned mentions:
-		/*
-		array(1) {
-		  [0]=>
-		  object(stdClass)#5 (16) {
-		    ["in_reply_to_user_id"]=>
-		    int(192887405)
-		    ["geo"]=>
-		    NULL
-		    ["in_reply_to_screen_name"]=>
-		    string(8) "japxlate"
-		    ["retweeted"]=>
-		    bool(false)
-		    ["truncated"]=>
-		    bool(false)
-		    ["created_at"]=>
-		    string(30) "Mon Sep 20 14:19:10 +0000 2010"
-		    ["source"]=>
-		    string(3) "web"
-		    ["retweet_count"]=>
-		    NULL
-		    ["contributors"]=>
-		    NULL
-		    ["place"]=>
-		    NULL
-		    ["user"]=>
-		    object(stdClass)#6 (32) {
-		      ["followers_count"]=>
-		      int(32)
-		      ["description"]=>
-		      string(0) ""
-		      ["listed_count"]=>
-		      int(1)
-		      ["profile_sidebar_fill_color"]=>
-		      string(6) "E6F6F9"
-		      ["url"]=>
-		      string(23) "http://www.knobdrop.com"
-		      ["show_all_inline_media"]=>
-		      bool(false)
-		      ["notifications"]=>
-		      bool(false)
-		      ["time_zone"]=>
-		      string(9) "Edinburgh"
-		      ["friends_count"]=>
-		      int(0)
-		      ["lang"]=>
-		      string(2) "en"
-		      ["statuses_count"]=>
-		      int(2925)
-		      ["created_at"]=>
-		      string(30) "Sun Sep 12 15:48:49 +0000 2010"
-		      ["profile_sidebar_border_color"]=>
-		      string(6) "DBE9ED"
-		      ["location"]=>
-		      string(9) "Edinburgh"
-		      ["favourites_count"]=>
-		      int(0)
-		      ["contributors_enabled"]=>
-		      bool(false)
-		      ["profile_use_background_image"]=>
-		      bool(true)
-		      ["following"]=>
-		      bool(false)
-		      ["geo_enabled"]=>
-		      bool(false)
-		      ["profile_background_color"]=>
-		      string(6) "DBE9ED"
-		      ["profile_background_image_url"]=>
-		      string(60) "http://s.twimg.com/a/1284949838/images/themes/theme17/bg.gif"
-		      ["protected"]=>
-		      bool(false)
-		      ["profile_image_url"]=>
-		      string(67) "http://s.twimg.com/a/1284949838/images/default_profile_3_normal.png"
-		      ["verified"]=>
-		      bool(false)
-		      ["profile_text_color"]=>
-		      string(6) "333333"
-		      ["name"]=>
-		      string(9) "Knob Drop"
-		      ["follow_request_sent"]=>
-		      bool(false)
-		      ["profile_background_tile"]=>
-		      bool(false)
-		      ["screen_name"]=>
-		      string(8) "knobdrop"
-		      ["id"]=>
-		      int(189915771)
-		      ["utc_offset"]=>
-		      int(0)
-		      ["profile_link_color"]=>
-		      string(6) "CC3366"
-		    }
-		    ["favorited"]=>
-		    bool(false)
-		    ["id"]=>
-		    float(25028856448)
-		    ["coordinates"]=>
-		    NULL
-		    ["in_reply_to_status_id"]=>
-		    NULL
-		    ["text"]=>
-		    string(19) "@japxlate  twospace"
-		  }
-		}
-		*/
+		//see https://dev.twitter.com/docs/api/1.1/get/statuses/mentions_timeline
+		
+		log_message('TwitterRobot::mentionProcessAll()');
+		
 		$parms_array = array();
-		$since_id = $this->getSinceId();
+		$since_id = $this->mentionGetMaxId();
 		if(!is_null($since_id))
 		{	
 			$parms_array['since_id'] = $since_id;
 		}
 		
-		$current_mentions = Twitter::get('statuses/mentions', $parms_array);
+		$current_mentions = Twitter::get('statuses/mentions_timeline', $parms_array);
 		
+		if (!is_array($current_mentions)) {
+			log_message("Twitter::get('statuses/mentions_timeline') did not return an array. It returned:");
+			log_message($current_mentions);
+		} else {
 		
-		
-		//[1] cache unprocessed tweets
-		foreach($current_mentions as $mention)
-		{
-			if(!$this->tweetAlreadyProcessed($mention->id_str))
-			{
-				if(!$this->tweetAlreadyCached($mention->id_str))
-				{
-					$this->cacheTweet($mention);
-				}
-			}
+            //[1] cache unprocessed mentions
+            foreach($current_mentions as $mention)
+            {
+                if(!$this->mentionIsProcessed($mention->id_str))
+                {
+                    if(!$this->mentionIsCached($mention->id_str))
+                    {
+                        $this->mentionCache($mention);
+                    }
+                }
+            }
 		}
 		
-		//[2] process one cached tweet (the oldest one)
-		return $this->processTweet();
-		
+		//[2] process *one* cached mention (the oldest one)
+		return $this->mentionProcessSingle();
 	}
 	
-	//
-	private function tweetAlreadyProcessed($tweet_id)
+	/**
+     * Has the specified mention already been processed (ie. replied to
+     * (successfully or not))?
+     * 
+     * @author Daniel Rhodes
+     * 
+     * @param string $tweet_id tweet id as string numeral
+     * @return bool true if specified tweet has already been processed (else false)
+     */
+	private function mentionIsProcessed($tweet_id)
 	{
+		log_message('TwitterRobot::mentionIsProcessed()');
+		
 		$row = MySQL::queryRow('SELECT * FROM handled_tweets WHERE tweet_id = \'' . $tweet_id . '\'');
 		
 		return is_array($row);
 	}
 	
-	//
-	private function tweetAlreadyCached($tweet_id)
+	/**
+     * Has the specified mention already been cached (for later processing) or not?
+     * 
+     * @author Daniel Rhodes
+     * 
+     * @param string $tweet_id tweet id as string numeral
+     * @return bool true if specified tweet has already been processed (else false)
+     */
+	private function mentionIsCached($tweet_id)
 	{
+		log_message('TwitterRobot::mentionIsCached()');
+		
 		$row = MySQL::queryRow('SELECT * FROM cached_tweets WHERE tweet_id = \'' . $tweet_id . '\'');
 		
 		return is_array($row);
 	}
 	
-	//
-	private function cacheTweet($tweet)
+	/**
+     * Cache the specified mention (for later processing)
+     * 
+     * @author Daniel Rhodes
+     * @note we don't save *every* bit of data that the tweet object has!
+     * 
+     * @param \stdClass $tweet the tweet object as returned from the API
+     */
+	private function mentionCache($tweet)
 	{
+		log_message('TwitterRobot::mentionCache()');
+		
 		$tweet_id = MySQL::esc($tweet->id_str);
 		$tweet_text = MySQL::esc($tweet->text);
 		$tweet_user = MySQL::esc($tweet->user->screen_name);
@@ -284,9 +250,15 @@ class TwitterRobot
 		MySQL::exec("INSERT INTO cached_tweets(tweet_id, tweet_text, tweet_user) VALUES('{$tweet_id}', '{$tweet_text}', '{$tweet_user}')");
 	}
 	
-	//returns true if anything was tweeted, false otherwise
-	private function processTweet()
+	/**
+     * Process, ie. attempt to reply to, the oldest mention in the cache
+     * 
+     * @return bool true if a reply was tweeted (else false)
+     */
+    private function mentionProcessSingle()
 	{
+		log_message('TwitterRobot::mentionProcessSingle()');
+		
 		$tweeted = false;
 		
 		//get oldest tweeted tweet in cache
@@ -299,13 +271,18 @@ class TwitterRobot
 		
 		$string_to_tweet = '';
 		
+        //TODO the following rules are rather strict and we probably miss well
+        //over 50% of attempted mentions!
+        //
 		//tweet acceptance rules:
+        //
 		//[] must start with '@japxlate' (ie. your TWITTER_FEED_NAME)
 		//[] must contain only one '@' (for the '@japxlate')
 		//[] must contain only one token (with no internal whitespace) after '@japxlate'
 		//                  (how about zenkaku space!?!?!)
 		//
 		//examples:
+        //
 		//[] '@japxlate morning'  [OK]
 		//[] '@japxlate good-for-nothing'  [OK]
 		//[] '@japxlate 正しい'  [OK]
@@ -400,24 +377,38 @@ class TwitterRobot
 		return $tweeted;
 	}
 	
-	//
-	/*
-	GET statuses/mentions
-		Parameters
-			Optional
-		
-		    * since_id Returns results with an ID greater than (that is, more recent than) the specified ID. There are limits to the number of Tweets which can be accessed through the API. If the limit of Tweets has occured since the since_id, the since_id will be forced to the oldest ID available.
-		          o http://api.twitter.com/1/statuses/mentions.json?since_id=12345
-
-	*/
-	private function getSinceId()
+    /**
+     * return current MAX tweet ID of all cached mentions
+     * (eg. for use as since_id parm of API's GET statuses/mentions)
+     * 
+     * @author Daniel Rhodes
+     * 
+     * @return int current MAX tweet ID of all cached mentions
+     */
+	private function mentionGetMaxId()
 	{
+		log_message('TwitterRobot::mentionGetMaxId()');
+		
 		return MySQL::queryOne('SELECT MAX(tweet_id) FROM cached_tweets');
 	}
+    
+    //----/end mention handling methods-----------------------------------------
+    
+	//----seed handling methods-------------------------------------------------
 	
-	//
-	private function haveSeed(array $direct_messages = null)
+	/**
+     * Do we have any seed DMs (a DM that TWITTER_FEED_NAME sends to self like "seed someWord")
+     * in the specified array of DMs?
+     * 
+     * @author Daniel Rhodes
+     * 
+     * @param array $direct_messages as returned from Twitter API
+     * @return bool true if $direct_messages contains any seed DMs
+     */
+	private function seedPresent(array $direct_messages = null)
 	{
+		log_message('TwitterRobot::seedPresent()');
+		
 		$have_seed = false;
 		
 		if(is_null($direct_messages))
@@ -431,7 +422,7 @@ class TwitterRobot
 				and $direct_message->recipient_screen_name == TWITTER_FEED_NAME
 				and mb_strpos($direct_message->text, 'seed ') === 0)
 			{
-				//here we basically qualify for a seed message
+				//here we *basically* qualify for a seed message
 				
 				$have_seed = true;
 				break;	//have at least one seed direct message so can stop looping to check
@@ -441,9 +432,19 @@ class TwitterRobot
 		return $have_seed;
 	}
 	
-	//
-	private function tweetSeed(array $direct_messages = null)
+	/**
+     * Process the first seed message found in the specified array of DMs
+     * 
+     * @author Daniel Rhodes
+     * @note we delete the seed DM after processing it
+     * 
+     * @param array $direct_messages as returned from Twitter API
+     * @return bool was the seed word's definition tweeted out?
+     */
+	private function seedProcessSingle(array $direct_messages = null)
 	{
+		log_message('TwitterRobot::seedProcessSingle()');
+		
 		$tweeted = false;
 		
 		if(is_null($direct_messages))
@@ -470,13 +471,13 @@ class TwitterRobot
 				if(is_array($word))
 				{
 					//tweet it
-					//(very similar to logic in tweetRandomWord(), separate this logic into own function?)
+					//(very similar to logic in definitionTweet(), separate this logic into own function?)
 					
 					$romaji = kana_to_romaji($word['kana']);
 					
-					$definition = trim($word['definition'], ' ;');
+					$definition = format_slashes($word['definition']);
 					
-					$tag = $this->getRandomTwitterTag();
+					$tag = $this->japaneseTagGet();
 					
 					Twitter::statusUpdate("A random {$tag} word: {$word['kanji']} / {$word['kana']} ({$romaji}) / {$definition}");
 					
@@ -493,25 +494,51 @@ class TwitterRobot
 		return $tweeted;
 	}
 	
-	//
-	private function processSeeds()
+	/**
+     * Process one seed DM *if* there is at least one available (else NOP)
+     * 
+     * @author Daniel Rhodes
+     * 
+     * @return bool true if a seed DM was present *and* its definition tweeted out
+     */
+	private function seedProcessAll()
 	{
+		log_message('TwitterRobot::seedProcessAll()');
+		
 		$tweeted = false;
 		
 		$direct_messages = Twitter::get('direct_messages');
 		
-		if($this->haveSeed($direct_messages))
-		{
-			$tweeted = $this->tweetSeed($direct_messages);
+		if (is_array($direct_messages)) {
+		    if($this->seedPresent($direct_messages))    //if at least one seed present
+            {
+                $tweeted = $this->seedProcessSingle($direct_messages);
+            }
+		} else {
+            log_message("Twitter::get('direct_messages') did not return an array. It returned:");
+            log_message($direct_messages);
 		}
 		
 		return $tweeted;
 	}
 	
-	//or somehow reuse get_xlation_for_xy() inside this function?
-	//$tag being a twitter hash tag
-	private function tweetRandomWord($tag)
+    //----/end seed handling methods--------------------------------------------
+    
+    //----definition handling methods-------------------------------------------
+    
+	/**
+     * Tweet out a random word definition from our dictionary.
+     * Possibly followed by an example sentence tweet
+     * 
+     * @author Daniel Rhodes
+     * @note or somehow reuse get_xlation_for_xy() inside this function?
+     * 
+     * @param string $tag Twitter hash tag to mean "Japanese" eg. '#nihongo' (used to introduce the definition)
+     */
+	private function definitionTweet($tag)
 	{
+		log_message('TwitterRobot::definitionTweet()');
+		
 		$max_word_id = MySQL::queryOne('SELECT MAX(id) FROM edict');
 		
 		$random_word_id = mt_rand(1, $max_word_id);
@@ -520,7 +547,7 @@ class TwitterRobot
 		
 		$romaji = kana_to_romaji($word['kana']);
 			
-		$definition = trim($word['definition'], ' ;');
+		$definition = format_slashes($word['definition']);
 		
 		Twitter::statusUpdate("A random {$tag} word: {$word['kanji']} / {$word['kana']} ({$romaji}) / {$definition}");
 		
@@ -538,24 +565,21 @@ class TwitterRobot
 		}
 	}
 	
-	//
-	private function getRandomTwitterTag()
-	{
-		$tags = array();
-		$tags[] = '#nihongo';
-		$tags[] = '#japanese';
-		
-		return $tags[mt_rand(0, count($tags) - 1)];
-	}
-	
-	//
-	//SEARCH FOR APPROPRIATE TAGS
-	//AND REPLY TO THOSE MATCHING TWEETERS
-	//"REMINDING" THEM THAT WE ARE HERE
-	//(POSS CACHING SO WE DON'T ANNOY THE SAME PERSON TWICE!)
+    //----/end definition handling methods--------------------------------------
+    
+    //----methods for "reminding" users about our Twitter feed------------------
+    
+    /**
+     * SEARCH FOR APPROPRIATE TAGS AND REPLY TO THOSE MATCHING TWEETERS
+     * "REMINDING" THEM THAT WE ARE HERE (CACHING SO WE DON'T ANNOY THE SAME PERSON TWICE!)
+     * 
+     * @author Daniel Rhodes
+     */
 	private function remindPeople()
 	{
-		$matches = json_decode(Twitter::rawSearch(implode(' OR ', $this->searchTags) . ' -' . implode(' -', $this->dontSearchTags)));
+		log_message('TwitterRobot::remindPeople()');
+		
+		$matches = Twitter::get('search/tweets', array('q' => implode(' OR ', $this->searchTags) . ' -' . implode(' -', $this->dontSearchTags)));
 		
 		foreach($matches->results as $result)
 		{
@@ -575,7 +599,7 @@ class TwitterRobot
 			//skip users who already follow us!!
 			$following_screen_names = array();
 			
-			$followers = Twitter::get('statuses/followers');	//returns only 100 most recent followers
+			$followers = Twitter::get('statuses/followers');	//TODO (?) returns only 100 most recent followers
 
 			foreach($followers as $user)
 			{
@@ -595,4 +619,86 @@ class TwitterRobot
 			break;	//do only one reminder tweet per turn
 		}
 	}
+    
+    //----/end methods for "reminding" users about our Twitter feed-------------
+    
+    //----utility and helper methods--------------------------------------------
+	
+    /**
+     * set up some different Twitter hash tags to mean "Japanese" in whatever language
+     * 
+     * @author Daniel Rhodes
+     * @note change these for your feed name and etc
+     */
+	private function japaneseTagInitiateAll()
+	{
+        $this->japaneseTags[] = '#nihongo'; //romaji
+		$this->japaneseTags[] = '#japanese';    //en
+        $this->japaneseTags[] = '#にほんご';    //ja hiragana
+        $this->japaneseTags[] = '#日本語';  //ja kanji
+        $this->japaneseTags[] = '#일본어';   //ko
+        $this->japaneseTags[] = '#日语'; //chinese
+        $this->japaneseTags[] = '#Японскийязык';    //russian
+        $this->japaneseTags[] = '#giapponese';  //italian
+        $this->japaneseTags[] = '#japonesa';    //portuguese
+        $this->japaneseTags[] = '#japonés';    //spanish
+        $this->japaneseTags[] = '#japones';    //spanish
+        //arabic?
+    }
+    
+    /**
+     * Return a random Twitter hash tag to mean "Japanese" in whatever language
+     * 
+     * @author Daniel Rhodes
+     * 
+     * @return string one "Japanese" Twitter hash tag
+     */
+	private function japaneseTagGet()
+	{
+		log_message('TwitterRobot::japaneseTagGet()');
+		
+		return $this->japaneseTags[mt_rand(0, count($this->japaneseTags) - 1)];
+	}
+    
+    /**
+     * set up fixed blurbs to tweet out very occasionally instead of a random word
+     * 
+     * @author Daniel Rhodes
+     * @note change these for your feed name and etc
+     */
+	private function jingleInitiateAll()
+	{
+		$this->jingles[] = 'Japxlate is powered by the wonderful EDICT #dictionary project as found at http://www.csse.monash.edu.au/~jwb/cgi-bin/wwwjdic.cgi';
+		$this->jingles[] = 'Japxlate\'s example sentences come from the excellent Tatoeba Project as found at http://tatoeba.org';
+		$this->jingles[] = 'Did you know that written #Japanese is actually a mixture of three different scripts? #Kanji, #hiragana and #katakana are used';
+		$this->jingles[] = 'Want to know how to say your favourite word in #Japanese? Tweet @japxlate yourWord for the answer!';
+		$this->jingles[] = 'Did you know that #katakana and #hiragana are purely phonetic? The character *is* the sound, the sound *is* the character!';
+		$this->jingles[] = 'Tweet @japxlate word for definitions. Word can be in English, Japanese script (kanji or kana) or romaji (Japanese words written in abc)';
+		$this->jingles[] = '#Kanji are ideographic characters taken from ancient Chinese';
+		$this->jingles[] = '#Hiragana is a rounded, cursive script. It\'s used to add grammar to a sentence and to give pronunciation hints';
+		$this->jingles[] = '英語定義が欲しい場合は「@japxlate 日本語単語」をツイートしてください。リプライで教えます。Japxlate は日本語母語話者用にも便利！';
+		$this->jingles[] = '#Katakana is a hard, angluar script. It\'s used to give emphasis to words and to write foreign words';
+		$this->jingles[] = 'Studying #kanji? Tweet @japxlate 漢字 for a definition!';
+		$this->jingles[] = 'Want an online map of Japan with English labels and searching? Head over to @Mapanese at http://mapanese.info';
+		$this->jingles[] = 'Heard a new #Japanese word? Give it to us in #romaji and we can still define it! Tweet @japxlate kotoba for a definition';
+		$this->jingles[] = 'Don\'t forget that Japxlate is interactive! Tweet @japxlate JapOrEnWord for a #definition';
+		$this->jingles[] = 'Did you know that in #Japanese the singular or plural distinction is not important and barely exists?';
+		$this->jingles[] = "Did you know that #Japanese doesn't have articles (a, an, the)?";
+	}
+    
+    /**
+     * Return, randomly, one of our fixed jingles
+     * 
+     * @author Daniel Rhodes
+     * 
+     * @return string one of our jingles
+     */
+    private function jingleGet()
+    {
+        log_message('TwitterRobot::jingleGet()');
+        
+        return $this->jingles[mt_rand(0, count($this->jingles) - 1)];
+    }
+    
+    //----/end utility and helper methods---------------------------------------
 }

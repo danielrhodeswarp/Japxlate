@@ -1,27 +1,28 @@
-[] Make an empty MySQL schema called 'japxlate' (or whatever you like)
+* Make an empty MySQL schema called 'japxlate' (or whatever you like)
 and dump the structure of /sql/japxlate_structure.sql into it
 
-[] Dump the data from /sql/edict_data.sql.zip into the schema
+* Rename configuration.php.SAMPLE in /conf to configuration.php 
 
-(it should be the case that the current EDICT file can be downloaded and eaten into the
-database with a script in /scripts. Unfortunately, the original script to do
-this seems to have vanished!)
+* Put your MySQL credentials (for the above created schema) in above configuration.php
 
-[] Rename configuration.php.SAMPLE in /conf to configuration.php 
-
-[] Put your MySQL credentials in above configuration.php
-
-[] You'll need a Twitter account and then a "My application" (so you can get some OAuth access tokens etc). You'll want "Read, Write and Access direct messages" permission. Put the
+* You'll need a Twitter account and then a "My application" (so you can get some OAuth access tokens etc). You'll want "Read, Write and Access direct messages" permission.
+Callback URL is not needed. Put the
 Twitter feed name, the tokens and secrets that the Twitter app gives you into configuration.php
 
-[] Download jpn_indices.csv, links.csv and sentences.csv from Tatoeba.org
+* Download EDICT2 dictionary file from http://www.csse.monash.edu.au/~jwb/edict.html
+and put in /csv/edict
+
+* Run /scripts/eat_edict2.php
+
+* Download jpn_indices.csv, links.csv and sentences.csv from Tatoeba.org
 and put in /csv/from_tatoeba.org
 
-[] Run /scripts/eat_tatoeba_project_sentences.csv.php
+* Run /scripts/eat_tatoeba_project_sentences.csv.php
 
-[] Run /scripts/eat_tatoeba_project_links.csv.php
+* Run /scripts/eat_tatoeba_project_links.csv.php
 
-[] Run /scripts/eat_tatoeba_project_jpn_indices.csv.php
+* Run /scripts/eat_tatoeba_project_jpn_indices.csv.php
 
-[] Bot is ready to run with /scripts/start_japxlate_bot.php (you'll
-probably want to put it in the background or do a nohup if remote)
+* Bot is ready to run with /scripts/start_japxlate_bot.php (you'll
+probably want to put it in the background or do a nohup if remote). Feel free
+to change the bot's internal and external timings in this file.

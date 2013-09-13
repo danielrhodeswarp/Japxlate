@@ -1,8 +1,12 @@
 <?php
 
 /**
+ * Digest the Tatoeba.org "jpn_indices.csv" file into our database.
+ * The file defines sentences per word
+ * 
  * @package    Japxlate (https://github.com/danielrhodeswarp/Japxlate)
- * @copyright  Copyright (c) 2011 Warp Asylum Ltd (UK).
+ * @author     Daniel Rhodes
+ * @copyright  Copyright (c) 2011-2013 Warp Asylum Ltd (UK).
  * @license    see LICENCE file in source code root folder     New BSD License
  */
 

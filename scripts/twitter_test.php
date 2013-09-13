@@ -1,12 +1,13 @@
 <?php
 
 /**
+ * Quick test to see that we can authorise to Twitter and use the API etc
+ * 
  * @package    Japxlate (https://github.com/danielrhodeswarp/Japxlate)
- * @copyright  Copyright (c) 2011 Warp Asylum Ltd (UK).
+ * @author     Daniel Rhodes
+ * @copyright  Copyright (c) 2011-2013 Warp Asylum Ltd (UK).
  * @license    see LICENCE file in source code root folder     New BSD License
  */
-
-//one-off test of twittering from our php class
 
 mb_language('Japanese');
 mb_internal_encoding('UTF-8');
@@ -21,13 +22,29 @@ include $_SERVER['DOCUMENT_ROOT'] . '/conf/include_files.php';
 
 //----Start----------------
 
-echo 'Return from http://twitter.com/help/test is: ' . Twitter::rawTest() . "\n";
 
-VAR_DUMP(json_decode(Twitter::rawSearch('fart')));
+//VAR_DUMP(Twitter::get('statuses/mentions_timeline'));
 
-EXIT;
+//VAR_DUMP(Twitter::get('search/tweets', array('q' => 'fart')));
+VAR_DUMP(Twitter::search('fart', 1));
+
+//var_dump(Twitter::get('account/verify_credentials'));
+
+exit;
+
+
+$rez = Twitter::get('account/verify_credentials');
+VAR_DUMP($rez);
+
+$rez = Twitter::get('search/tweets', array('q' => 'fart'));
+VAR_DUMP($rez);
+
+
+
+//EXIT;
 //echo 'Return from GET direct_messages is: ' . print_r(Twitter::get('direct_messages'), true) . "\n";
 
+/*
 $direct_messages = Twitter::get('direct_messages');
 
 echo count($direct_messages) . ' direct messages' . "\n";
@@ -53,9 +70,10 @@ foreach($direct_messages as $direct_message)
 		echo "'" . $direct_message->text . "'" . ' is NOT a seed direct message' . "\n";
 	}
 }
+exit;*/
 
+/*
 $rez = Twitter::statusUpdate("test ichi\r\ntest ni " . time());
-//$rez = Twitter::statusUpdate('');
 VAR_DUMP($rez);
 
 if(property_exists($rez, 'error'))
@@ -67,3 +85,4 @@ else
 {
 	echo "no error in result\n";
 }
+ */
