@@ -22,7 +22,6 @@ include $_SERVER['DOCUMENT_ROOT'] . '/conf/include_files.php';
 
 //----Start----------------
 
-
 //VAR_DUMP(Twitter::get('statuses/mentions_timeline'));
 
 //VAR_DUMP(Twitter::get('search/tweets', array('q' => 'fart')));

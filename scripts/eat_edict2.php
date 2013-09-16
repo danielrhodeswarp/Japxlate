@@ -50,8 +50,15 @@ if($handle)
             continue;
         }
         
-        //print_r($parts);
+        $common = 'n';
         
+        //print_r($parts);
+        if($parts[count($parts) - 3] == '(P)')
+        {
+            //print_r($parts);
+            $common = 'y';
+        }
+        //continue;
         
         $kanji_and_poss_kana = trim($parts[0], '] ');
         
@@ -131,7 +138,7 @@ if($handle)
         $safeKana = MySQL::esc($kana);
         $safeDefinition = MySQL::esc("/{$flat_defs}/");   //add head and tail slashes for easier searching (in liguistics.php)
         
-        MySQL::exec("INSERT INTO edict(kanji, kana, definition) VALUES('{$safeKanji}', '{$safeKana}', '{$safeDefinition}')");
+        MySQL::exec("INSERT INTO edict(kanji, kana, definition, common) VALUES('{$safeKanji}', '{$safeKana}', '{$safeDefinition}', '{$common}')");
         
         
 	}

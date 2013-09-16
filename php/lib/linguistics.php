@@ -779,7 +779,16 @@ function romaji_to_hiragana($romaji_string)
 }
 
 /**
- * Search dictionary for a definition of the specified English word
+ * Search dictionary for a definition of the specified English (OR ROMAJI) word
+ * 
+ * Matching priority:
+ * [1] exact English match (but ci) against common words
+ * [2] exact English match (but ci) against uncommon words
+ * [3] partial English match (but ci) against common words
+ * [4] partial English match (but ci) against uncommon words
+ * [5] [treat as romaji] exact match (but ci) against common kana
+ * [6] [treat as romaji] exact match (but ci) against uncommon kana
+ * (then choose a random one from whichever matched resultset)
  * 
  * @author Daniel Rhodes
  * 
@@ -788,63 +797,50 @@ function romaji_to_hiragana($romaji_string)
  */
 function get_xlation_for_en($word)
 {
+    $safeWord = MySQL::esc($word);
+    $safeWordKana = MySQL::esc(romaji_to_hiragana($word));
+    
+    $best_matches = array();
+    
+    $precedence = array();
+    $precedence[] = "SELECT * FROM edict WHERE definition LIKE '%/{$safeWord}/%' AND common = 'y'";
+    $precedence[] = "SELECT * FROM edict WHERE definition LIKE '%/{$safeWord}/%' AND common = 'n'";
+    $precedence[] = "SELECT * FROM edict WHERE definition LIKE '%{$safeWord}%' AND common = 'y'";
+    $precedence[] = "SELECT * FROM edict WHERE definition LIKE '%{$safeWord}%' AND common = 'n'";
+    $precedence[] = "SELECT * FROM edict WHERE kana LIKE '{$safeWordKana}' AND common = 'y'";
+    $precedence[] = "SELECT * FROM edict WHERE kana LIKE '{$safeWordKana}' AND common = 'n'";
+    
     //search for exact match in definition list
 	$best_matches = MySQL::queryAll('SELECT * FROM edict WHERE definition LIKE \'%/' . MySQL::esc($word) . '/%\'');
 	
-	if(!empty($best_matches))
-	{
-		//$row = $best_matches[0];	//or randomise?
-		$row = $best_matches[mt_rand(0, count($best_matches) - 1)];	//or prioritise?
-		
-		$romaji = kana_to_romaji($row['kana']);
-		
-		$definition = format_slashes($row['definition']);
-		
-		return "{$row['kanji']} / {$row['kana']} ({$romaji}) / {$definition}";
-	}
-	
-	else
-	{
-        //search for partial match in definition list
-		$second_best_matches = MySQL::queryAll('SELECT * FROM edict WHERE definition LIKE \'%' . MySQL::esc($word) . '%\'');
-	
-		if(!empty($second_best_matches))
-		{
-			//$row = $second_best_matches[0];	//or randomise?
-			$row = $second_best_matches[mt_rand(0, count($second_best_matches) - 1)];	//or prioritise?
-			
-			$romaji = kana_to_romaji($row['kana']);
-			
-			$definition = format_slashes($row['definition']);
-			
-			return "{$row['kanji']} / {$row['kana']} ({$romaji}) / {$definition}";
-		}
-		
-		else	//try word as jap word in romaji
-		{
-			$word_in_kana = romaji_to_hiragana($word);
-			
-			$romaji_matches = MySQL::queryAll('SELECT * FROM edict WHERE kana LIKE \'' . MySQL::esc($word_in_kana) . '\'');
-	
-			if(!empty($romaji_matches))
-			{
-				//$row = $romaji_matches[0];	//or randomise?
-				$row = $romaji_matches[mt_rand(0, count($romaji_matches) - 1)];	//or prioritise?
-				
-				$romaji = kana_to_romaji($row['kana']);
-				
-				$definition = format_slashes($row['definition']);
-				
-				return "{$row['kanji']} / {$row['kana']} ({$romaji}) / {$definition}";
-			}
-		}
-	}
+	foreach($precedence as $query)
+    {
+        $best_matches = MySQL::queryAll($query);
+        
+        if(!empty($best_matches))
+        {
+            $row = $best_matches[mt_rand(0, count($best_matches) - 1)];	//or prioritise somehow?
+
+            $romaji = kana_to_romaji($row['kana']);
+
+            $definition = format_slashes($row['definition']);
+
+            return "{$row['kanji']} / {$row['kana']} ({$romaji}) / {$definition}";
+        }
+    }
 	
 	return '';
 }
 
 /**
  * Search dictionary for a definition of the specified Japanese word
+ * 
+ * Matching priority:
+ * [1] exact match (but ci) against common kanji
+ * [2] exact match (but ci) against uncommon kanji
+ * [3] exact match (but ci) against common kana
+ * [4] exact match (but ci) against uncommon kana
+ * (then choose a random one from whichever matched resultset)
  * 
  * @author Daniel Rhodes
  * 
@@ -853,40 +849,34 @@ function get_xlation_for_en($word)
  */
 function get_xlation_for_ja($word)
 {
-    //search for match as kanji
-	$best_matches = MySQL::queryAll('SELECT * FROM edict WHERE kanji LIKE \'' . MySQL::esc($word) . '\'');
-	
-	if(!empty($best_matches))
-	{
-		//$row = $best_matches[0];	//or randomise?
-		$row = $best_matches[mt_rand(0, count($best_matches) - 1)];	//or prioritise?
-		
-		$romaji = kana_to_romaji($row['kana']);
-		
-		$definition = format_slashes($row['definition']);
-		
-		return "{$row['kanji']} / {$row['kana']} ({$romaji}) / {$definition}";
-	}
-	
-	else
-	{
-        //search for match as kana
-		$second_best_matches = MySQL::queryAll('SELECT * FROM edict WHERE kana LIKE \'' . MySQL::esc(kata_to_hira($word)) . '\'');
-	
-		if(!empty($second_best_matches))
-		{
-			//$row = $second_best_matches[0];	//or randomise?
-			$row = $second_best_matches[mt_rand(0, count($second_best_matches) - 1)];	//or prioritise?
-			
-			$romaji = kana_to_romaji($row['kana']);
-			
-			$definition = format_slashes($row['definition']);
-			
-			return "{$row['kanji']} / {$row['kana']} ({$romaji}) / {$definition}";
-		}
-	}
-	
-	return '';
+    $safeKanji = MySQL::esc($word);
+    $safeKana = MySQL::esc(kata_to_hira($word));
+    
+    $best_matches = array();
+    
+    $precedence = array();
+    $precedence[] = "SELECT * FROM edict WHERE kanji LIKE '{$safeKanji}' AND common = 'y'";
+    $precedence[] = "SELECT * FROM edict WHERE kanji LIKE '{$safeKanji}' AND common = 'n'";
+    $precedence[] = "SELECT * FROM edict WHERE kana LIKE '{$safeKana}' AND common = 'y'";
+    $precedence[] = "SELECT * FROM edict WHERE kana LIKE '{$safeKana}' AND common = 'n'";
+    
+    foreach($precedence as $query)
+    {
+        $best_matches = MySQL::queryAll($query);
+        
+        if(!empty($best_matches))
+        {
+            $row = $best_matches[mt_rand(0, count($best_matches) - 1)];	//or prioritise somehow?
+
+            $romaji = kana_to_romaji($row['kana']);
+
+            $definition = format_slashes($row['definition']);
+
+            return "{$row['kanji']} / {$row['kana']} ({$romaji}) / {$definition}";
+        }
+    }
+    
+    return '';  //zero matches
 }
 
 /**
@@ -982,4 +972,30 @@ SQL;
 	}
 	
 	return $sentence;
+}
+
+/**
+ * Trim singlebyte and multibyte punctuation from the start and end of a string
+ * 
+ * @author Daniel Rhodes
+ * @note we want the first non-word grabbing to be greedy but then
+ * @note we want the dot-star grabbing (before the last non-word grabbing)
+ * @note to be ungreedy
+ * 
+ * @param string $string input string in UTF-8
+ * @return string as $string but with leading and trailing punctuation removed
+ */
+function mb_punctuation_trim($string)
+{
+    preg_match('/^[^\w]{0,}(.*?)[^\w]{0,}$/iu', $string, $matches); //case-'i'nsensitive and 'u'ngreedy
+    
+    if(count($matches) < 2)
+    {
+        log_error('mb_punctuation_trim() - regex failure on ' . $string);
+        return $string;
+    }
+    
+    log_language("NOTE mbpunctuation_trim('{$string}') = '{$matches[1]}'");
+    
+    return $matches[1];
 }

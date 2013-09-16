@@ -271,35 +271,33 @@ class TwitterRobot
 		
 		$string_to_tweet = '';
 		
-        //TODO the following rules are rather strict and we probably miss well
-        //over 50% of attempted mentions!
         //
 		//tweet acceptance rules:
         //
 		//[] must start with '@japxlate' (ie. your TWITTER_FEED_NAME)
-		//[] must contain only one '@' (for the '@japxlate')
-		//[] must contain only one token (with no internal whitespace) after '@japxlate'
-		//                  (how about zenkaku space!?!?!)
+		//[] followed by at least one whitespace
+		//[] followed by at least one printing character (ie. one or more words - can have spaces but prob won't hit much - see below)
 		//
 		//examples:
         //
-		//[] '@japxlate morning'  [OK]
-		//[] '@japxlate good-for-nothing'  [OK]
-		//[] '@japxlate 正しい'  [OK]
-		//[] '@japxlate 主張'  [OK]
-		//[] '@japxlate why hello there'  [NG]
-		//[] '@japxlate 正しい  主張'  [NG]
+		//[] '@japxlate morning'  [OK] and will prob hit
+		//[] '@japxlate good-for-nothing'  [OK] but prob won't hit
+		//[] '@japxlate 正しい'  [OK] and will prob hit
+		//[] '@japxlate 主張'  [OK] and will prob hit
+		//[] '@japxlate why hello there'  [OK] and *might* hit
+		//[] '@japxlate 正しい  主張'  [OK] but *def* won't hit
 		//[] '@japxlate ikimasu?'    [OK after we trim]
-		//[] '@japxlate ikimasu.'    [OK after we trim]
+		//[] '@japxlate "ikimasu"'    [OK after we trim]
 		//[] '@japxlate ikimasu!'    [OK after we trim]
+        //[] '@japxlate ！主張！'    [OK after we trim]
 		
-		$regex = '/^[@]' . TWITTER_FEED_NAME . '[\s]{1,}([^\s]{1,})$/i';
+		$regex = '/^[@]' . TWITTER_FEED_NAME . '[\s]{1,}(.*?)[\s]{0,}$/i';    //TODO what if strange characters in TWITTER_FEED_NAME? 
 		if(preg_match($regex, $tweet['tweet_text'], $matches))
 		{
 			//echo $tweet['tweet_text'] . "  --  OK\n";
 			
-			$word_to_translate = trim($matches[1], '?!.');	//but could be en or ja at this stage!
-			
+			$word_to_translate = mb_punctuation_trim($matches[1]);  //but could be en or ja at this stage!
+            
 			if(is_mb($word_to_translate))	//kanji or kana - therefore Japanese
 			{
 				//kanji or kana?
@@ -357,7 +355,7 @@ class TwitterRobot
 		{		//and blast it off to Excite or something??)
 			//echo $mention->text . "  --  NG\n\n";
 			
-			
+			log_language("NOTE did not attempt to handle [{$tweet['tweet_text']}] as a def req");
 		}
 		
 		
@@ -684,6 +682,8 @@ class TwitterRobot
 		$this->jingles[] = 'Don\'t forget that Japxlate is interactive! Tweet @japxlate JapOrEnWord for a #definition';
 		$this->jingles[] = 'Did you know that in #Japanese the singular or plural distinction is not important and barely exists?';
 		$this->jingles[] = "Did you know that #Japanese doesn't have articles (a, an, the)?";
+        $this->jingles[] = 'Your definition requests in English can now have multiple word phrases! For example [@japxlate bad weather] - without the square brackets!';
+        $this->jingles[] = 'Definition replies favour the 20,000 (or so!) "common" dictionary entries. This gives you more natural sounding words!';
 	}
     
     /**
