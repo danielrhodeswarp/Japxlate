@@ -277,7 +277,8 @@ class TwitterRobot
 		//[] must start with '@japxlate' (ie. your TWITTER_FEED_NAME)
 		//[] followed by at least one whitespace
 		//[] followed by at least one printing character (ie. one or more words - can have spaces but prob won't hit much - see below)
-		//
+		//[] BUT not more than three separate words (else we end up trying to look up non def req tweets in the dictionary and then replying with "oooops"!)
+        //
 		//examples:
         //
 		//[] '@japxlate morning'  [OK] and will prob hit
@@ -285,6 +286,7 @@ class TwitterRobot
 		//[] '@japxlate 正しい'  [OK] and will prob hit
 		//[] '@japxlate 主張'  [OK] and will prob hit
 		//[] '@japxlate why hello there'  [OK] and *might* hit
+        //[] '@japxlate why hello there dudes'  [not OK] as more than 3 separate words
 		//[] '@japxlate 正しい  主張'  [OK] but *def* won't hit
 		//[] '@japxlate ikimasu?'    [OK after we trim]
 		//[] '@japxlate "ikimasu"'    [OK after we trim]
@@ -292,7 +294,7 @@ class TwitterRobot
         //[] '@japxlate ！主張！'    [OK after we trim]
 		
 		$regex = '/^[@]' . TWITTER_FEED_NAME . '[\s]{1,}(.*?)[\s]{0,}$/i';    //TODO what if strange characters in TWITTER_FEED_NAME? 
-		if(preg_match($regex, $tweet['tweet_text'], $matches))
+		if(preg_match($regex, $tweet['tweet_text'], $matches) and str_word_count($matches[1]) < 4)  //NOTE it doesn't matter in this case, but str_word_count() does not seem to count japanese characters at all (even after a setlocal() to japanese) and simply gives zero
 		{
 			//echo $tweet['tweet_text'] . "  --  OK\n";
 			

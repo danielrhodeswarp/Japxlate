@@ -413,6 +413,7 @@ function kana_to_romaji($kana_string)
 	//Smash hyphens ('-') used as 'ー'
 	$romajiString = preg_replace('|([^0-9])[-]([^0-9])|', '${1}ー${2}', $romajiString);
 	
+    //replace katakana style 'ー' with previous vowel (actually any char) again
 	$romajiString = preg_replace('|([a-z]{1})ー|', '${1}${1}', $romajiString);
 	
     //log any transliteration failures (ie. $romajiString still has katakana in it)
@@ -431,6 +432,7 @@ function kana_to_romaji($kana_string)
  * @note many many gaps in this!
  * @note perhaps use PHP's recode_string() instead
  * @note get small tsu etc working
+ * @todo CHECK IF THIS IS ACTUALLY WRKING!
  * 
  * @param string $romaji_string source string in romaji
  * @return string the source string converted into hiragana
