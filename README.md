@@ -1,4 +1,4 @@
-# Japxlate
+# japxlate
 
 ## What is it?
 
